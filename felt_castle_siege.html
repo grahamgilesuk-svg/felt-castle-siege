@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Felt Castle Siege — Blocks Edition</title>
+<style>
+  :root {
+    --felt: #7ba05b;
+    --felt-dark: #5d7f44;
+    --parchment: #f3ead7;
+    --ink: #3d3327;
+    --stitch: #8a6f4d;
+    --accent: #b34a3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 1rem;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1.45;
+  }
+  header { max-width: 1140px; margin: 0 auto 0.75rem; text-align: center; }
+  .kicker { letter-spacing: 0.28em; font-size: 0.72rem; margin: 0; text-transform: uppercase; }
+  h1 { margin: 0.15rem 0 0.1rem; font-size: 1.9rem; letter-spacing: 0.04em; }
+  .tagline { margin: 0; font-style: italic; }
+  .edition { margin: 0.3rem 0 0; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: #6d5c44; }
+  main { max-width: 1140px; margin: 0 auto; }
+  .stage {
+    border: 3px solid var(--stitch);
+    border-radius: 14px;
+    padding: 6px;
+    background: var(--felt-dark);
+    box-shadow: 0 4px 14px rgba(61, 51, 39, 0.25);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: var(--felt);
+    touch-action: none;
+    outline: none;
+  }
+  canvas:focus-visible { box-shadow: 0 0 0 3px #ffd76a; }
+  .hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+    align-items: baseline;
+    padding: 0.55rem 0.2rem 0.2rem;
+    font-size: 0.95rem;
+  }
+  .hud strong { font-size: 1.15rem; }
+  #status-text { font-style: italic; }
+  #save-status { font-size: 0.8rem; color: #6d5c44; }
+  .controls, .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    align-items: center;
+    padding: 0.4rem 0.2rem;
+  }
+  label { display: inline-flex; align-items: center; gap: 0.45rem; }
+  input[type="range"] { min-height: 44px; }
+  select, button {
+    font: inherit;
+    min-height: 44px;
+    padding: 0.35rem 0.9rem;
+    border: 2px solid var(--stitch);
+    border-radius: 9px;
+    background: #fffaf0;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 3px solid #b34a3a;
+    outline-offset: 2px;
+  }
+  #launch-btn { background: var(--accent); border-color: #7d3126; color: #fff7ec; font-weight: bold; }
+  .hint { font-size: 0.82rem; color: #6d5c44; margin: 0.2rem 0.2rem 0.6rem; }
+  #inspector-panel {
+    border: 2px dashed var(--stitch);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin: 0.5rem 0;
+    background: #fffaf0;
+  }
+  #inspector-panel h2 { margin-top: 0; font-size: 1.05rem; }
+  #inspector-body { display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 1rem; margin: 0.5rem 0; }
+  #inspector-body dt { font-weight: bold; }
+  #inspector-body dd { margin: 0; }
+  #inspector-components { padding-left: 1.2rem; }
+  #inspector-components li { margin-bottom: 0.25rem; }
+  #inspector-components .kind { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: #6d5c44; }
+  dialog {
+    border: 3px solid var(--stitch);
+    border-radius: 14px;
+    padding: 1.2rem 1.5rem;
+    background: var(--parchment);
+    color: var(--ink);
+    max-width: 24rem;
+  }
+  dialog::backdrop { background: rgba(40, 32, 20, 0.55); }
+  dialog h2 { margin-top: 0; }
+  dialog .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
+  @media (max-width: 640px) {
+    body { padding: 0.6rem; }
+    h1 { font-size: 1.4rem; }
+    .controls, .toolbar { gap: 0.4rem; }
+    button, select { padding: 0.3rem 0.6rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <p class="kicker">A small siege, stitched by hand</p>
+  <h1>Felt Castle Siege</h1>
+  <p class="tagline">Pull back. Let go. Bring down the crown.</p>
+  <p class="edition">Blocks · Edition / 02 · Castle</p>
+</header>
+<main>
+  <div class="stage">
+    <canvas id="game-canvas" width="1100" height="620" tabindex="0"
+      aria-label="Siege play field. Up and down arrows aim, left and right arrows set power, space launches, P pauses."></canvas>
+  </div>
+  <section class="hud" aria-live="polite">
+    <span>Shots <strong id="shot-count">3</strong></span>
+    <span>Score <strong id="score-value">0</strong></span>
+    <span>Best <strong id="best-value">0</strong></span>
+    <span id="status-text">Ready to aim.</span>
+    <span id="save-status">Progress saved on this device.</span>
+  </section>
+  <section class="controls">
+    <label for="angle-slider">Launch angle
+      <input id="angle-slider" type="range" min="0" max="80" value="35" step="1">
+      <span id="angle-value">35&deg;</span>
+    </label>
+    <label for="power-slider">Power
+      <input id="power-slider" type="range" min="10" max="100" value="80" step="1">
+      <span id="power-value">80%</span>
+    </label>
+    <button id="launch-btn" type="button">Launch boulder</button>
+  </section>
+  <section class="toolbar">
+    <label for="level-select">Level
+      <select id="level-select"></select>
+    </label>
+    <button id="reset-btn" type="button">Reset level</button>
+    <button id="pause-btn" type="button">Pause</button>
+    <button id="sound-btn" type="button" aria-pressed="false">Sound off</button>
+    <button id="inspector-toggle" type="button" aria-expanded="false">Blocks inspector</button>
+  </section>
+  <p class="hint">Arrow keys: aim and power. Space: launch. P: pause. Escape: cancel a drag.</p>
+  <section id="inspector-panel" hidden>
+    <h2>Blocks inspector</h2>
+    <label><input id="hitbox-toggle" type="checkbox"> Show hitboxes</label>
+    <dl id="inspector-body"></dl>
+    <h3>Components</h3>
+    <ul id="inspector-components"></ul>
+  </section>
+  <dialog id="result-dialog">
+    <h2 id="result-title"></h2>
+    <p id="result-detail"></p>
+    <div class="actions">
+      <button id="result-next" type="button">Next level</button>
+      <button id="result-replay" type="button">Replay level</button>
+      <button id="result-close" type="button">Inspect castle</button>
+    </div>
+  </dialog>
+</main>
+<script id="felt-siege-core">
+(function (global) {
+  'use strict';
+
+  var VERSION = '2.0.0';
+
+  var World = { width: 1100, height: 620, groundY: 520 };
+  var Sling = { x: 180, y: 400 };
+  var BoulderSpec = { radius: 18, mass: 5 };
+
+  var Defaults = {
+    gravity: 650,
+    maxPull: 110,
+    minPull: 12,
+    pullVelocity: 9,
+    fixedDt: 1 / 120,
+    solverIterations: 8,
+    restitution: 0.12,
+    restitutionMinSpeed: 120,
+    friction: 0.35,
+    correctionPercent: 0.8,
+    correctionSlop: 0.05,
+    groundDamping: 0.996,
+    boulderBounce: 0.22,
+    boulderBounceMinSpeed: 110,
+    damageMinSpeed: 85,
+    damageBase: 70,
+    damageScale: 0.32,
+    damageCooldown: 0.15,
+    blastRadius: 150,
+    blastDamage: 170,
+    blastImpulse: 620,
+    blastLift: 260,
+    crownDisplacement: 42,
+    shotTimeout: 12,
+    quietTime: 0.65,
+    minFlightTime: 1,
+    settleTime: 1,
+    restSpeed: 20,
+    maxFrame: 0.1,
+    scorePerBlock: 200,
+    scoreCrown: 1000,
+    scoreUnusedShot: 100,
+    shotsPerAttempt: 3,
+    scoreCap: 100000
+  };
+
+  var Materials = {
+    glass: { mass: 1, hp: 24 },
+    timber: { mass: 3, hp: 110 },
+    stone: { mass: 11, hp: 240 },
+    powder: { mass: 2, hp: 25 },
+    crown: { mass: 1.5, hp: 30 },
+    boulder: { mass: 5, hp: Infinity }
+  };
+
+  var Levels = [
+    {
+      name: 'Wooden outpost',
+      blocks: [
+        { id: 'barrier', material: 'glass', x: 690, y: 485, w: 18, h: 70 },
+        { id: 'post-left', material: 'timber', x: 745, y: 475, w: 22, h: 90 },
+        { id: 'post-right', material: 'timber', x: 855, y: 475, w: 22, h: 90 },
+        { id: 'roof', material: 'timber', x: 800, y: 419, w: 150, h: 22 },
+        { id: 'crown', material: 'crown', x: 800, y: 393, w: 34, h: 26 }
+      ]
+    },
+    {
+      name: 'Powder bastion',
+      blocks: [
+        { id: 'barrier', material: 'glass', x: 690, y: 485, w: 18, h: 70 },
+        { id: 'post-left', material: 'stone', x: 750, y: 475, w: 24, h: 90 },
+        { id: 'post-right', material: 'stone', x: 870, y: 475, w: 24, h: 90 },
+        { id: 'roof', material: 'timber', x: 810, y: 419, w: 180, h: 22 },
+        { id: 'crown', material: 'crown', x: 810, y: 393, w: 34, h: 26 },
+        { id: 'barrel', material: 'powder', x: 940, y: 506, w: 28, h: 28 }
+      ]
+    },
+    {
+      name: 'Grand fortress',
+      blocks: [
+        { id: 'barrier', material: 'glass', x: 620, y: 485, w: 18, h: 70 },
+        { id: 'barrel-a', material: 'powder', x: 664, y: 506, w: 28, h: 28 },
+        { id: 'barrel-b', material: 'powder', x: 700, y: 506, w: 28, h: 28 },
+        { id: 'post-left', material: 'stone', x: 770, y: 475, w: 24, h: 90 },
+        { id: 'post-mid', material: 'stone', x: 870, y: 475, w: 24, h: 90 },
+        { id: 'post-right', material: 'stone', x: 970, y: 475, w: 24, h: 90 },
+        { id: 'deck', material: 'stone', x: 870, y: 419, w: 240, h: 22 },
+        { id: 'upper-left', material: 'timber', x: 800, y: 373, w: 20, h: 70 },
+        { id: 'upper-glass', material: 'glass', x: 870, y: 373, w: 18, h: 70 },
+        { id: 'upper-right', material: 'timber', x: 940, y: 373, w: 20, h: 70 },
+        { id: 'upper-roof', material: 'timber', x: 870, y: 338, w: 200, h: 22 },
+        { id: 'crown', material: 'crown', x: 870, y: 312, w: 34, h: 26 }
+      ]
+    }
+  ];
+
+  function clamp(value, min, max) {
+    return value < min ? min : (value > max ? max : value);
+  }
+
+  function createBody(options) {
+    var materialName = options.material || 'timber';
+    var material = Materials[materialName] || Materials.timber;
+    var isProjectile = !!options.isProjectile;
+    var mass = isProjectile ? BoulderSpec.mass : material.mass;
+    return {
+      id: options.id || 'body',
+      material: materialName,
+      x: options.x,
+      y: options.y,
+      hw: options.w / 2,
+      hh: options.h / 2,
+      vx: 0,
+      vy: 0,
+      mass: mass,
+      invMass: 1 / mass,
+      hp: isProjectile ? Infinity : material.hp,
+      maxHp: isProjectile ? Infinity : material.hp,
+      alive: true,
+      isProjectile: isProjectile,
+      radius: isProjectile ? BoulderSpec.radius : 0,
+      grounded: false,
+      exploded: false
+    };
+  }
+
+  function pullFromAim(angleDeg, powerPct) {
+    var rad = (clamp(Number(angleDeg) || 0, 0, 90)) * Math.PI / 180;
+    var p = clamp(Number(powerPct) || 0, 0, 100) / 100;
+    return {
+      x: -Math.cos(rad) * p * Defaults.maxPull,
+      y: Math.sin(rad) * p * Defaults.maxPull
+    };
+  }
+
+  function DragBlock(config) {
+    this.config = Object.assign({}, Defaults, config || {});
+    this.pointerId = null;
+    this.pull = { x: 0, y: 0 };
+  }
+  DragBlock.prototype.clampPull = function (x, y) {
+    var mag = Math.hypot(x, y);
+    var max = this.config.maxPull;
+    if (mag > max) {
+      x = x / mag * max;
+      y = y / mag * max;
+    }
+    return { x: x, y: y };
+  };
+  DragBlock.prototype.getPull = function () {
+    return { x: this.pull.x, y: this.pull.y };
+  };
+  DragBlock.prototype.isActive = function () {
+    return this.pointerId !== null;
+  };
+  DragBlock.prototype.begin = function (id, x, y) {
+    if (this.pointerId !== null) return null;
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return null;
+    this.pointerId = id;
+    this.pull = this.clampPull(x - Sling.x, y - Sling.y);
+    return this.getPull();
+  };
+  DragBlock.prototype.move = function (id, x, y) {
+    if (this.pointerId === null || id !== this.pointerId) return null;
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return null;
+    this.pull = this.clampPull(x - Sling.x, y - Sling.y);
+    return this.getPull();
+  };
+  DragBlock.prototype.end = function (id) {
+    if (this.pointerId === null || id !== this.pointerId) return null;
+    var pull = this.getPull();
+    var valid = Math.hypot(pull.x, pull.y) >= this.config.minPull;
+    this.pointerId = null;
+    this.pull = { x: 0, y: 0 };
+    return valid ? pull : null;
+  };
+  DragBlock.prototype.cancel = function () {
+    this.pointerId = null;
+    this.pull = { x: 0, y: 0 };
+  };
+  DragBlock.prototype.aim = function (x, y) {
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) {
+      return { x: 0, y: 0 };
+    }
+    return this.clampPull(x - Sling.x, y - Sling.y);
+  };
+
+  function PhysicsIntegratorBlock(config) {
+    this.config = Object.assign({}, Defaults, config || {});
+  }
+  PhysicsIntegratorBlock.prototype.integrate = function (body, dt) {
+    body.vy += this.config.gravity * dt;
+    body.x += body.vx * dt;
+    body.y += body.vy * dt;
+  };
+  PhysicsIntegratorBlock.prototype.ground = function (body, groundY) {
+    body.grounded = false;
+    var bottom = body.y + body.hh;
+    if (bottom <= groundY) return;
+    body.y = groundY - body.hh;
+    if (body.vy > 0) {
+      var bounce = 0;
+      if (body.isProjectile && body.vy > this.config.boulderBounceMinSpeed) {
+        bounce = this.config.boulderBounce;
+      }
+      body.vy = -body.vy * bounce;
+      if (body.vy > -20) body.vy = 0;
+    }
+    body.grounded = true;
+    body.vx *= this.config.groundDamping;
+  };
+  PhysicsIntegratorBlock.prototype.groundClamp = function (body, groundY) {
+    var bottom = body.y + body.hh;
+    if (bottom > groundY) {
+      body.y = groundY - body.hh;
+      if (body.vy > 0) body.vy = 0;
+    }
+  };
+
+  function CollisionBlock(config) {
+    this.config = Object.assign({}, Defaults, config || {});
+  }
+  CollisionBlock.prototype.circleBox = function (circle, box) {
+    var r = circle.radius;
+    var minX = box.x - box.hw, maxX = box.x + box.hw;
+    var minY = box.y - box.hh, maxY = box.y + box.hh;
+    var cx = clamp(circle.x, minX, maxX);
+    var cy = clamp(circle.y, minY, maxY);
+    var dx = circle.x - cx;
+    var dy = circle.y - cy;
+    var d2 = dx * dx + dy * dy;
+    if (d2 > r * r) return null;
+    var nx, ny, pen;
+    if (d2 > 1e-9) {
+      var d = Math.sqrt(d2);
+      nx = dx / d;
+      ny = dy / d;
+      pen = r - d;
+    } else {
+      var left = circle.x - minX;
+      var right = maxX - circle.x;
+      var top = circle.y - minY;
+      var bottom = maxY - circle.y;
+      var minPen = Math.min(left, right, top, bottom);
+      if (minPen === left) { nx = -1; ny = 0; pen = left + r; }
+      else if (minPen === right) { nx = 1; ny = 0; pen = right + r; }
+      else if (minPen === top) { nx = 0; ny = -1; pen = top + r; }
+      else { nx = 0; ny = 1; pen = bottom + r; }
+    }
+    return { nx: nx, ny: ny, pen: pen };
+  };
+  CollisionBlock.prototype.boxBox = function (a, b) {
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var px = a.hw + b.hw - Math.abs(dx);
+    var py = a.hh + b.hh - Math.abs(dy);
+    if (px <= 0 || py <= 0) return null;
+    var nx, ny, pen;
+    if (px < py) {
+      nx = dx < 0 ? -1 : 1;
+      ny = 0;
+      pen = px;
+    } else {
+      nx = 0;
+      ny = dy < 0 ? -1 : 1;
+      pen = py;
+    }
+    return { nx: nx, ny: ny, pen: pen };
+  };
+  CollisionBlock.prototype.contact = function (a, b) {
+    var c = null;
+    if (a.isProjectile && !b.isProjectile) {
+      c = this.circleBox(a, b);
+      if (c) { c.nx = -c.nx; c.ny = -c.ny; }
+    } else if (b.isProjectile && !a.isProjectile) {
+      c = this.circleBox(b, a);
+    } else if (!a.isProjectile && !b.isProjectile) {
+      c = this.boxBox(a, b);
+    }
+    if (!c) return null;
+    var rvx = b.vx - a.vx;
+    var rvy = b.vy - a.vy;
+    c.closingSpeed = -(rvx * c.nx + rvy * c.ny);
+    return c;
+  };
+  CollisionBlock.prototype.resolve = function (a, b, c) {
+    var cfg = this.config;
+    if (!(c.pen > 0)) return 0;
+    var invSum = a.invMass + b.invMass;
+    if (invSum <= 0) return 0;
+    var correction = Math.max(c.pen - cfg.correctionSlop, 0) * cfg.correctionPercent / invSum;
+    a.x -= c.nx * correction * a.invMass;
+    a.y -= c.ny * correction * a.invMass;
+    b.x += c.nx * correction * b.invMass;
+    b.y += c.ny * correction * b.invMass;
+    var rvx = b.vx - a.vx;
+    var rvy = b.vy - a.vy;
+    var rv = rvx * c.nx + rvy * c.ny;
+    if (rv >= 0) return 0;
+    var closing = -rv;
+    var e = closing > cfg.restitutionMinSpeed ? cfg.restitution : 0;
+    var j = -(1 + e) * rv / invSum;
+    a.vx -= c.nx * j * a.invMass;
+    a.vy -= c.ny * j * a.invMass;
+    b.vx += c.nx * j * b.invMass;
+    b.vy += c.ny * j * b.invMass;
+    rvx = b.vx - a.vx;
+    rvy = b.vy - a.vy;
+    var rn = rvx * c.nx + rvy * c.ny;
+    var tx = rvx - rn * c.nx;
+    var ty = rvy - rn * c.ny;
+    var tlen = Math.hypot(tx, ty);
+    if (tlen > 1e-6) {
+      tx /= tlen;
+      ty /= tlen;
+      var jt = -(rvx * tx + rvy * ty) / invSum;
+      var maxFriction = cfg.friction * j;
+      if (jt > maxFriction) jt = maxFriction;
+      else if (jt < -maxFriction) jt = -maxFriction;
+      a.vx -= tx * jt * a.invMass;
+      a.vy -= ty * jt * a.invMass;
+      b.vx += tx * jt * b.invMass;
+      b.vy += ty * jt * b.invMass;
+    }
+    return closing;
+  };
+
+  function TrajectoryPredictorBlock(config) {
+    this.config = Object.assign({}, Defaults, config || {});
+  }
+  TrajectoryPredictorBlock.prototype.predict = function (pull, steps) {
+    if (!pull || !isFinite(pull.x) || !isFinite(pull.y)) return [];
+    var cfg = this.config;
+    var dt = cfg.fixedDt;
+    var x = Sling.x + pull.x;
+    var y = Sling.y + pull.y;
+    var vx = -pull.x * cfg.pullVelocity;
+    var vy = -pull.y * cfg.pullVelocity;
+    var r = BoulderSpec.radius;
+    var points = [];
+    for (var i = 0; i < steps; i++) {
+      vy += cfg.gravity * dt;
+      x += vx * dt;
+      y += vy * dt;
+      points.push({ x: x, y: y });
+      if (y + r >= World.groundY) break;
+    }
+    return points;
+  };
+
+  function SessionStorageBlock(adapter, levelCount) {
+    this.adapter = adapter || null;
+    this.levelCount = Math.max(1, levelCount | 0);
+    this.key = 'feltCastleProgress.v2';
+    this.legacyKey = 'feltCastleProgress';
+    this.available = !!(this.adapter &&
+      typeof this.adapter.getItem === 'function' &&
+      typeof this.adapter.setItem === 'function');
+    this.lastError = null;
+  }
+  SessionStorageBlock.prototype.defaults = function () {
+    var bests = [];
+    for (var i = 0; i < this.levelCount; i++) bests.push(0);
+    return { version: 2, unlocked: 0, selected: 0, bests: bests, muted: true };
+  };
+  SessionStorageBlock.prototype.clampInt = function (value, min, max, fallback) {
+    var n = Number(value);
+    if (!isFinite(n)) return fallback;
+    n = Math.floor(n);
+    return clamp(n, min, max);
+  };
+  SessionStorageBlock.prototype.normalize = function (raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if (Number(raw.version) !== 2) return null;
+    var state = this.defaults();
+    state.unlocked = this.clampInt(raw.unlocked, 0, this.levelCount - 1, 0);
+    state.selected = this.clampInt(raw.selected, 0, state.unlocked, 0);
+    if (Array.isArray(raw.bests)) {
+      for (var i = 0; i < this.levelCount && i < raw.bests.length; i++) {
+        var score = Number(raw.bests[i]);
+        if (isFinite(score) && score > 0) {
+          state.bests[i] = clamp(Math.floor(score), 0, Defaults.scoreCap);
+        }
+      }
+    }
+    state.muted = raw.muted === undefined ? true : !!raw.muted;
+    return state;
+  };
+  SessionStorageBlock.prototype.readRaw = function (key) {
+    if (!this.available) return undefined;
+    try {
+      var text = this.adapter.getItem(key);
+      if (text === null || text === undefined) return null;
+      return JSON.parse(text);
+    } catch (e) {
+      this.lastError = e;
+      return undefined;
+    }
+  };
+  SessionStorageBlock.prototype.load = function () {
+    this.lastError = null;
+    var raw = this.readRaw(this.key);
+    if (raw === null) {
+      var legacy = this.readRaw(this.legacyKey);
+      if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+        var migrated = this.defaults();
+        migrated.unlocked = this.clampInt(legacy.unlocked, 0, this.levelCount - 1, 0);
+        return { state: migrated, available: this.available, migrated: true };
+      }
+      return { state: this.defaults(), available: this.available, migrated: false };
+    }
+    var state = this.normalize(raw);
+    if (!state) return { state: this.defaults(), available: this.available, migrated: false };
+    return { state: state, available: this.available, migrated: false };
+  };
+  SessionStorageBlock.prototype.save = function (state) {
+    this.lastError = null;
+    if (!this.available) {
+      this.lastError = new Error('storage-unavailable');
+      return false;
+    }
+    var clean = this.normalize(state) || this.defaults();
+    try {
+      this.adapter.setItem(this.key, JSON.stringify(clean));
+      return true;
+    } catch (e) {
+      this.lastError = e;
+      return false;
+    }
+  };
+  SessionStorageBlock.prototype.complete = function (level, score) {
+    var result = this.load();
+    var state = result.state;
+    var idx = clamp(Math.floor(Number(level) || 0), 0, this.levelCount - 1);
+    var value = Number(score);
+    value = isFinite(value) && value > 0 ? clamp(Math.floor(value), 0, Defaults.scoreCap) : 0;
+    if (value > state.bests[idx]) state.bests[idx] = value;
+    state.unlocked = Math.max(state.unlocked, Math.min(idx + 1, this.levelCount - 1));
+    var saved = this.save(state);
+    return { state: state, saved: saved };
+  };
+
+  function FixedStepClockBlock(dt, maxFrame) {
+    this.dt = dt > 0 ? dt : 1 / 120;
+    this.maxFrame = maxFrame > 0 ? maxFrame : 0.1;
+    this.accumulator = 0;
+    this.stepsRun = 0;
+  }
+  FixedStepClockBlock.prototype.advance = function (elapsed, stepFn, thisArg) {
+    if (!(elapsed > 0) || typeof stepFn !== 'function') return 0;
+    if (elapsed > this.maxFrame) elapsed = this.maxFrame;
+    this.accumulator += elapsed;
+    var ran = 0;
+    while (this.accumulator >= this.dt) {
+      stepFn.call(thisArg, this.dt);
+      this.accumulator -= this.dt;
+      ran++;
+      this.stepsRun++;
+    }
+    return ran;
+  };
+  FixedStepClockBlock.prototype.reset = function () {
+    this.accumulator = 0;
+    this.stepsRun = 0;
+  };
+
+  function SiegeWorld(config) {
+    this.config = Object.assign({}, Defaults, config || {});
+    this.integrator = new PhysicsIntegratorBlock(this.config);
+    this.collision = new CollisionBlock(this.config);
+    this.drag = new DragBlock(this.config);
+    this.clock = new FixedStepClockBlock(this.config.fixedDt, this.config.maxFrame);
+    this.levelCount = Levels.length;
+    this.events = [];
+    this.pendingDamage = Object.create(null);
+    this.damagePairs = Object.create(null);
+    this.reset(0);
+  }
+  SiegeWorld.prototype.emit = function (event) {
+    this.events.push(event);
+    if (this.events.length > 200) this.events.shift();
+  };
+  SiegeWorld.prototype.drain = function () {
+    var events = this.events;
+    this.events = [];
+    return events;
+  };
+  SiegeWorld.prototype.reset = function (levelIndex) {
+    var index = clamp(Math.floor(Number(levelIndex) || 0), 0, Levels.length - 1);
+    this.level = index;
+    var definition = Levels[index];
+    this.bodies = [];
+    for (var i = 0; i < definition.blocks.length; i++) {
+      var block = definition.blocks[i];
+      this.bodies.push(createBody({
+        id: block.id || 'b' + i,
+        material: block.material,
+        x: block.x,
+        y: block.y,
+        w: block.w,
+        h: block.h
+      }));
+    }
+    this.crown = null;
+    for (i = 0; i < this.bodies.length; i++) {
+      if (this.bodies[i].material === 'crown') this.crown = this.bodies[i];
+    }
+    this.projectile = createBody({
+      id: 'boulder',
+      material: 'boulder',
+      x: Sling.x,
+      y: Sling.y,
+      w: BoulderSpec.radius * 2,
+      h: BoulderSpec.radius * 2,
+      isProjectile: true
+    });
+    this.bodies.push(this.projectile);
+    this.shots = this.config.shotsPerAttempt;
+    this.score = 0;
+    this.state = 'READY';
+    this.flightTime = 0;
+    this.quietTimer = 0;
+    this.simTime = 0;
+    this.crownScored = false;
+    this.explosionCount = 0;
+    this.damagePairs = Object.create(null);
+    this.pendingDamage = Object.create(null);
+    this.events = [];
+    this.drag.cancel();
+    this.clock.reset();
+    var settleSteps = Math.round(this.config.settleTime / this.config.fixedDt);
+    for (i = 0; i < settleSteps; i++) this.fixedStep(this.config.fixedDt);
+    this.crownBaseline = this.crown ? { x: this.crown.x, y: this.crown.y } : { x: 0, y: 0 };
+    this.emit({ type: 'reset', level: this.level });
+  };
+  SiegeWorld.prototype.isTerminal = function () {
+    return this.state === 'WON' || this.state === 'LOST';
+  };
+  SiegeWorld.prototype.step = function (dtSeconds) {
+    if (this.isTerminal()) return;
+    if (typeof dtSeconds !== 'number' || !isFinite(dtSeconds) || dtSeconds <= 0) return;
+    this.clock.advance(dtSeconds, this.fixedStep, this);
+  };
+  SiegeWorld.prototype.fixedStep = function (dt) {
+    this.simTime += dt;
+    var flying = this.state === 'FLYING';
+    if (flying) this.flightTime += dt;
+    var bodies = this.bodies;
+    var i, body;
+    for (i = 0; i < bodies.length; i++) {
+      body = bodies[i];
+      if (!body.alive) continue;
+      if (body.isProjectile && !flying) continue;
+      this.integrator.integrate(body, dt);
+      this.integrator.ground(body, World.groundY);
+    }
+    this.detectDamage(flying);
+    this.processDamageQueue();
+    this.resolvePairs(flying);
+    if (flying) {
+      this.checkCrownDisplacement();
+      if (this.state === 'FLYING') this.checkShotResolution(dt);
+    }
+  };
+  SiegeWorld.prototype.detectDamage = function (flying) {
+    this.pendingDamage = Object.create(null);
+    var bodies = this.bodies;
+    var n = bodies.length;
+    for (var i = 0; i < n; i++) {
+      var a = bodies[i];
+      if (!a.alive) continue;
+      for (var j = i + 1; j < n; j++) {
+        var b = bodies[j];
+        if (!a.alive || !b.alive) continue;
+        if ((a.isProjectile || b.isProjectile) && !flying) continue;
+        var contact = this.collision.contact(a, b);
+        if (contact) this.recordDamage(a, b, contact.closingSpeed);
+      }
+    }
+  };
+  SiegeWorld.prototype.resolvePairs = function (flying) {
+    var bodies = this.bodies;
+    var n = bodies.length;
+    var iter, i, j, a, b, contact, body;
+    for (iter = 0; iter < this.config.solverIterations; iter++) {
+      for (i = 0; i < n; i++) {
+        a = bodies[i];
+        for (j = i + 1; j < n; j++) {
+          b = bodies[j];
+          if (!a.alive || !b.alive) continue;
+          if ((a.isProjectile || b.isProjectile) && !flying) continue;
+          contact = this.collision.contact(a, b);
+          if (!contact) continue;
+          this.collision.resolve(a, b, contact);
+        }
+      }
+      for (i = 0; i < n; i++) {
+        body = bodies[i];
+        if (body.alive && !(body.isProjectile && !flying)) {
+          this.integrator.groundClamp(body, World.groundY);
+        }
+      }
+    }
+  };
+  SiegeWorld.prototype.recordDamage = function (a, b, closingSpeed) {
+    if (!(closingSpeed > this.config.damageMinSpeed)) return;
+    var key = a.id < b.id ? a.id + '|' + b.id : b.id + '|' + a.id;
+    var existing = this.pendingDamage[key];
+    if (!existing || closingSpeed > existing.closingSpeed) {
+      this.pendingDamage[key] = { a: a, b: b, closingSpeed: closingSpeed };
+    }
+  };
+  SiegeWorld.prototype.processDamageQueue = function () {
+    var queue = this.pendingDamage;
+    this.pendingDamage = Object.create(null);
+    var now = this.simTime;
+    for (var key in queue) {
+      if (!Object.prototype.hasOwnProperty.call(queue, key)) continue;
+      var entry = queue[key];
+      var last = this.damagePairs[key];
+      if (last !== undefined && now - last < this.config.damageCooldown) continue;
+      this.damagePairs[key] = now;
+      this.applyImpactDamage(entry.a, entry.b, entry.closingSpeed);
+    }
+  };
+  SiegeWorld.prototype.applyImpactDamage = function (a, b, closingSpeed) {
+    var cfg = this.config;
+    var excess = closingSpeed - cfg.damageBase;
+    if (!(excess > 0)) return;
+    if (!a.isProjectile) this.applyDamage(a, excess * cfg.damageScale * Math.min(b.mass, 5), 'impact');
+    if (!b.isProjectile) this.applyDamage(b, excess * cfg.damageScale * Math.min(a.mass, 5), 'impact');
+  };
+  SiegeWorld.prototype.applyDamage = function (body, damage, cause) {
+    if (!body || !body.alive || body.isProjectile) return false;
+    if (!(damage > 0)) return false;
+    body.hp -= damage;
+    this.emit({
+      type: 'hit',
+      id: body.id,
+      material: body.material,
+      x: body.x,
+      y: body.y,
+      damage: damage,
+      cause: cause
+    });
+    if (body.hp <= 0) {
+      this.destroyBody(body, cause);
+      return true;
+    }
+    return false;
+  };
+  SiegeWorld.prototype.damageBody = function (id, damage) {
+    for (var i = 0; i < this.bodies.length; i++) {
+      if (this.bodies[i].id === id) return this.applyDamage(this.bodies[i], damage, 'diagnostic');
+    }
+    return false;
+  };
+  SiegeWorld.prototype.destroyBody = function (body, cause) {
+    if (!body.alive) return;
+    body.alive = false;
+    body.hp = 0;
+    var isCrown = body.material === 'crown';
+    var points = 0;
+    if (isCrown) {
+      if (!this.crownScored) {
+        points = this.config.scoreCrown;
+        this.crownScored = true;
+        this.score += points;
+      }
+    } else {
+      points = this.config.scorePerBlock;
+      this.score += points;
+    }
+    this.emit({
+      type: 'destroy',
+      id: body.id,
+      material: body.material,
+      x: body.x,
+      y: body.y,
+      points: points,
+      cause: cause
+    });
+    if (body.material === 'powder') this.detonate(body);
+  };
+  SiegeWorld.prototype.detonate = function (body) {
+    if (body.exploded) return;
+    body.exploded = true;
+    this.explosionCount += 1;
+    this.emit({ type: 'explode', id: body.id, x: body.x, y: body.y });
+    var cfg = this.config;
+    for (var i = 0; i < this.bodies.length; i++) {
+      var other = this.bodies[i];
+      if (other === body || !other.alive || other.isProjectile) continue;
+      var dx = other.x - body.x;
+      var dy = other.y - body.y;
+      var d = Math.hypot(dx, dy);
+      if (d >= cfg.blastRadius) continue;
+      var falloff = 1 - d / cfg.blastRadius;
+      var inv = 1 / Math.max(other.mass, 1);
+      var nx = 0, ny = -1;
+      if (d > 0.001) {
+        nx = dx / d;
+        ny = dy / d;
+      }
+      other.vx += nx * cfg.blastImpulse * falloff * inv;
+      other.vy += (ny * cfg.blastImpulse * falloff - cfg.blastLift * falloff) * inv;
+      this.applyDamage(other, cfg.blastDamage * falloff, 'blast');
+    }
+  };
+  SiegeWorld.prototype.checkCrownDisplacement = function () {
+    var crown = this.crown;
+    if (!crown) return;
+    if (!crown.alive) {
+      this.winRound();
+      return;
+    }
+    var dx = crown.x - this.crownBaseline.x;
+    var dy = crown.y - this.crownBaseline.y;
+    var limit = this.config.crownDisplacement;
+    if (dx * dx + dy * dy >= limit * limit) this.winRound();
+  };
+  SiegeWorld.prototype.winRound = function () {
+    if (this.isTerminal()) return;
+    this.state = 'WON';
+    this.score += this.config.scoreUnusedShot * this.shots;
+    this.emit({
+      type: 'win',
+      level: this.level,
+      score: this.score,
+      shotsLeft: this.shots
+    });
+  };
+  SiegeWorld.prototype.loseRound = function () {
+    if (this.isTerminal()) return;
+    this.state = 'LOST';
+    this.emit({ type: 'lose', level: this.level, score: this.score });
+  };
+  SiegeWorld.prototype.checkShotResolution = function (dt) {
+    var cfg = this.config;
+    var p = this.projectile;
+    var gone = p.x < -60 || p.x > World.width + 60 || p.y > World.height + 60;
+    var castleQuiet = true;
+    var i, body, speed;
+    for (i = 0; i < this.bodies.length; i++) {
+      body = this.bodies[i];
+      if (!body.alive || body.isProjectile) continue;
+      speed = Math.hypot(body.vx, body.vy);
+      if (speed > cfg.restSpeed) {
+        castleQuiet = false;
+        break;
+      }
+    }
+    var boulderQuiet = gone || (p.grounded && Math.hypot(p.vx, p.vy) < cfg.restSpeed);
+    if (this.flightTime >= cfg.minFlightTime && castleQuiet && boulderQuiet) {
+      this.quietTimer += dt;
+    } else {
+      this.quietTimer = 0;
+    }
+    if (this.quietTimer >= cfg.quietTime || this.flightTime >= cfg.shotTimeout) {
+      this.resolveShot();
+    }
+  };
+  SiegeWorld.prototype.resolveShot = function () {
+    if (this.state !== 'FLYING') return;
+    if (this.shots > 0) {
+      this.state = 'READY';
+      this.resetProjectile();
+      this.emit({ type: 'ready', shotsLeft: this.shots });
+    } else {
+      this.loseRound();
+    }
+  };
+  SiegeWorld.prototype.resetProjectile = function () {
+    var p = this.projectile;
+    p.x = Sling.x;
+    p.y = Sling.y;
+    p.vx = 0;
+    p.vy = 0;
+    p.alive = true;
+    p.grounded = false;
+  };
+  SiegeWorld.prototype.launch = function (pull) {
+    if (this.state !== 'READY') return false;
+    if (!pull || typeof pull.x !== 'number' || typeof pull.y !== 'number' ||
+        !isFinite(pull.x) || !isFinite(pull.y)) {
+      return false;
+    }
+    var cfg = this.config;
+    var mx = pull.x;
+    var my = pull.y;
+    var mag = Math.hypot(mx, my);
+    if (mag < cfg.minPull) return false;
+    if (mag > cfg.maxPull) {
+      mx = mx / mag * cfg.maxPull;
+      my = my / mag * cfg.maxPull;
+    }
+    this.state = 'FLYING';
+    this.shots -= 1;
+    this.flightTime = 0;
+    this.quietTimer = 0;
+    var p = this.projectile;
+    p.x = Sling.x + mx;
+    p.y = Sling.y + my;
+    p.vx = -mx * cfg.pullVelocity;
+    p.vy = -my * cfg.pullVelocity;
+    p.alive = true;
+    p.grounded = false;
+    this.emit({ type: 'launch', x: p.x, y: p.y, vx: p.vx, vy: p.vy });
+    return true;
+  };
+  SiegeWorld.prototype.snapshot = function () {
+    return {
+      version: VERSION,
+      level: this.level,
+      levelName: Levels[this.level].name,
+      state: this.state,
+      shots: this.shots,
+      score: this.score,
+      simTime: this.simTime,
+      flightTime: this.flightTime,
+      explosionCount: this.explosionCount,
+      crownBaseline: { x: this.crownBaseline.x, y: this.crownBaseline.y },
+      projectile: {
+        x: this.projectile.x,
+        y: this.projectile.y,
+        vx: this.projectile.vx,
+        vy: this.projectile.vy,
+        alive: this.projectile.alive
+      },
+      bodies: this.bodies.map(function (b) {
+        return {
+          id: b.id,
+          material: b.material,
+          x: b.x,
+          y: b.y,
+          hw: b.hw,
+          hh: b.hh,
+          vx: b.vx,
+          vy: b.vy,
+          hp: b.hp,
+          maxHp: b.maxHp,
+          alive: b.alive,
+          isProjectile: b.isProjectile
+        };
+      })
+    };
+  };
+
+  global.FeltSiegeCore = {
+    version: VERSION,
+    World: World,
+    Sling: Sling,
+    BoulderSpec: BoulderSpec,
+    Defaults: Defaults,
+    Materials: Materials,
+    Levels: Levels,
+    createBody: createBody,
+    pullFromAim: pullFromAim,
+    DragBlock: DragBlock,
+    PhysicsIntegratorBlock: PhysicsIntegratorBlock,
+    CollisionBlock: CollisionBlock,
+    TrajectoryPredictorBlock: TrajectoryPredictorBlock,
+    SessionStorageBlock: SessionStorageBlock,
+    FixedStepClockBlock: FixedStepClockBlock,
+    SiegeWorld: SiegeWorld
+  };
+})(typeof window !== 'undefined' ? window : this);
+</script>
+<script id="felt-siege-ui">
+(function (global) {
+  'use strict';
+
+  var Core = global.FeltSiegeCore;
+  if (!Core) return;
+  var doc = global.document;
+  if (!doc || typeof doc.getElementById !== 'function') return;
+
+  var World = Core.World;
+  var Sling = Core.Sling;
+
+  var COMPONENTS = [
+    ['DragBlock', 'Functional', 'Owns one pointer, clamps the pull and returns launch vectors.'],
+    ['PhysicsIntegratorBlock', 'Functional', 'Semi-implicit Euler integration and ground contact at 120 Hz.'],
+    ['CollisionBlock', 'Functional', 'Circle-box and box-box contacts with impulse, friction and separation.'],
+    ['TrajectoryPredictorBlock', 'Functional', 'Free-flight preview samples from the flight integrator.'],
+    ['SessionStorageBlock', 'Functional', 'Validated progress persistence with safe failure handling.'],
+    ['FixedStepClockBlock', 'Functional', 'Fixed 120 Hz simulation stepping independent of drawing.'],
+    ['StitchedFeltRendererBlock', 'Visual', 'Cached felt backdrop, stitched blocks, crown, sling and beads.'],
+    ['ParticleEffectsBlock', 'Visual', 'Bounded material fragments and blast smoke; clears on reset.'],
+    ['AudioBlock', 'Visual', 'Optional synthesised tones after a user gesture; defaults off.'],
+    ['CatapultLauncherSection', 'Section', 'Pointer capture, drag-to-launch and keyboard aiming.'],
+    ['CastleBuilderSection', 'Section', 'Builds live bodies from the authored level layouts.'],
+    ['GameHUD', 'Section', 'Score, ammunition, level selector, save status, dialogs and telemetry.']
+  ];
+
+  var world = null;
+  var storage = null;
+  var predictor = null;
+  var ctx = null;
+  var fibreCache = null;
+  var frameCount = 0;
+  var lastFrame = null;
+  var els = {};
+
+  var ui = {
+    paused: false,
+    muted: true,
+    angle: 35,
+    power: 80,
+    dragPointer: null,
+    savingAvailable: true,
+    inspectorOpen: false,
+    hitboxes: false,
+    reducedMotion: false,
+    unlocked: 0,
+    bests: [0, 0, 0],
+    best: 0,
+    particles: [],
+    floats: []
+  };
+
+  var rngSeed = 987654321;
+  function rnd() {
+    rngSeed = (rngSeed * 1103515245 + 12345) & 0x7fffffff;
+    return rngSeed / 0x7fffffff;
+  }
+
+  function byId(id) {
+    var el = doc.getElementById(id);
+    if (!el) throw new Error('missing element: ' + id);
+    return el;
+  }
+
+  function on(el, type, fn) {
+    if (el && typeof el.addEventListener === 'function') {
+      el.addEventListener(type, fn);
+    }
+  }
+
+  function makeAdapter() {
+    try {
+      var ls = global.localStorage;
+      if (!ls || typeof ls.getItem !== 'function' || typeof ls.setItem !== 'function') return null;
+      return {
+        getItem: function (k) { return ls.getItem(k); },
+        setItem: function (k, v) { ls.setItem(k, v); }
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function currentBest() {
+    var value = ui.bests[world.level];
+    return typeof value === 'number' ? value : 0;
+  }
+
+  function init() {
+    els.canvas = byId('game-canvas');
+    els.shotCount = byId('shot-count');
+    els.scoreValue = byId('score-value');
+    els.bestValue = byId('best-value');
+    els.statusText = byId('status-text');
+    els.saveStatus = byId('save-status');
+    els.angleSlider = byId('angle-slider');
+    els.angleValue = byId('angle-value');
+    els.powerSlider = byId('power-slider');
+    els.powerValue = byId('power-value');
+    els.launchBtn = byId('launch-btn');
+    els.levelSelect = byId('level-select');
+    els.resetBtn = byId('reset-btn');
+    els.pauseBtn = byId('pause-btn');
+    els.soundBtn = byId('sound-btn');
+    els.inspectorToggle = byId('inspector-toggle');
+    els.inspectorPanel = byId('inspector-panel');
+    els.inspectorBody = byId('inspector-body');
+    els.inspectorComponents = byId('inspector-components');
+    els.hitboxToggle = byId('hitbox-toggle');
+    els.resultDialog = byId('result-dialog');
+    els.resultTitle = byId('result-title');
+    els.resultDetail = byId('result-detail');
+    els.resultNext = byId('result-next');
+    els.resultReplay = byId('result-replay');
+    els.resultClose = byId('result-close');
+
+    ctx = els.canvas.getContext ? els.canvas.getContext('2d') : null;
+
+    var mq = null;
+    try {
+      mq = typeof global.matchMedia === 'function' ? global.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    } catch (e) {
+      mq = null;
+    }
+    ui.reducedMotion = !!(mq && mq.matches);
+
+    storage = new Core.SessionStorageBlock(makeAdapter(), Core.Levels.length);
+    predictor = new Core.TrajectoryPredictorBlock();
+    var loaded = storage.load();
+    ui.savingAvailable = loaded.available && !storage.lastError;
+    ui.unlocked = loaded.state.unlocked;
+    ui.bests = loaded.state.bests;
+    ui.muted = loaded.state.muted;
+
+    world = new Core.SiegeWorld();
+    world.reset(loaded.state.selected);
+    ui.best = currentBest();
+
+    bindEvents();
+    buildInspectorComponents();
+    buildLevelSelect();
+    updateSoundButton();
+    updateSaveStatus();
+    syncControls();
+    updateHUD();
+    setStatus('Ready to aim.');
+    global.requestAnimationFrame(frame);
+  }
+
+  function bindEvents() {
+    on(els.launchBtn, 'click', function () { launchPull(currentAimPull()); });
+    on(els.resetBtn, 'click', function () { loadLevel(world.level); });
+    on(els.pauseBtn, 'click', togglePause);
+    on(els.soundBtn, 'click', toggleSound);
+    on(els.inspectorToggle, 'click', toggleInspector);
+    on(els.hitboxToggle, 'change', function () {
+      ui.hitboxes = !!els.hitboxToggle.checked;
+    });
+    on(els.angleSlider, 'input', function () {
+      setAngle(Number(els.angleSlider.value));
+    });
+    on(els.powerSlider, 'input', function () {
+      setPower(Number(els.powerSlider.value));
+    });
+    on(els.levelSelect, 'change', onLevelSelect);
+    on(els.canvas, 'pointerdown', onPointerDown);
+    on(els.canvas, 'pointermove', onPointerMove);
+    on(els.canvas, 'pointerup', onPointerUp);
+    on(els.canvas, 'pointercancel', onPointerCancel);
+    on(els.canvas, 'keydown', onKeydown);
+    on(els.resultNext, 'click', onNextLevel);
+    on(els.resultReplay, 'click', function () {
+      closeResult();
+      loadLevel(world.level);
+    });
+    on(els.resultClose, 'click', closeResult);
+    on(doc, 'visibilitychange', onVisibilityChange);
+    if (typeof global.addEventListener === 'function') {
+      global.addEventListener('blur', function () {
+        pauseForInterruption();
+      });
+    }
+  }
+
+  function setStatus(text) {
+    els.statusText.textContent = text;
+  }
+
+  function updateSaveStatus() {
+    els.saveStatus.textContent = ui.savingAvailable
+      ? 'Progress saved on this device.'
+      : 'Saving unavailable — progress kept for this session.';
+  }
+
+  function updateSoundButton() {
+    els.soundBtn.textContent = ui.muted ? 'Sound off' : 'Sound on';
+    els.soundBtn.setAttribute('aria-pressed', ui.muted ? 'false' : 'true');
+  }
+
+  function syncControls() {
+    els.angleSlider.value = String(ui.angle);
+    els.powerSlider.value = String(ui.power);
+    els.angleValue.textContent = ui.angle + '\u00B0';
+    els.powerValue.textContent = ui.power + '%';
+  }
+
+  function setAngle(value) {
+    ui.angle = Math.round(Math.min(Math.max(Number(value) || 0, 0), 80));
+    syncControls();
+  }
+
+  function setPower(value) {
+    ui.power = Math.round(Math.min(Math.max(Number(value) || 0, 10), 100));
+    syncControls();
+  }
+
+  function updateHUD() {
+    els.shotCount.textContent = String(world.shots);
+    els.scoreValue.textContent = String(world.score);
+    els.bestValue.textContent = String(ui.best);
+    els.launchBtn.disabled = ui.paused || world.state !== 'READY';
+  }
+
+  function currentAimPull() {
+    var rad = ui.angle * Math.PI / 180;
+    var p = ui.power / 100;
+    return world.drag.aim(
+      Sling.x - Math.cos(rad) * p * Core.Defaults.maxPull,
+      Sling.y + Math.sin(rad) * p * Core.Defaults.maxPull
+    );
+  }
+
+  function launchPull(pull) {
+    if (ui.paused) return false;
+    var ok = world.launch(pull);
+    if (ok) setStatus('Boulder away!');
+    updateHUD();
+    return ok;
+  }
+
+  function togglePause() {
+    ui.paused = !ui.paused;
+    world.drag.cancel();
+    ui.dragPointer = null;
+    els.pauseBtn.textContent = ui.paused ? 'Resume' : 'Pause';
+    setStatus(ui.paused ? 'Paused.' : 'Ready to aim.');
+    updateHUD();
+  }
+
+  function pauseForInterruption() {
+    if (!ui.paused) {
+      ui.paused = true;
+      els.pauseBtn.textContent = 'Resume';
+      setStatus('Paused.');
+    }
+    world.drag.cancel();
+    ui.dragPointer = null;
+    updateHUD();
+  }
+
+  function onVisibilityChange() {
+    if (doc.hidden) pauseForInterruption();
+  }
+
+  function toggleSound() {
+    ui.muted = !ui.muted;
+    updateSoundButton();
+    if (!ui.muted) playTone(440, 0.08, 'square', 0.04);
+    persistState();
+  }
+
+  function persistState() {
+    var saved = storage.save({
+      version: 2,
+      unlocked: ui.unlocked,
+      selected: world.level,
+      bests: ui.bests,
+      muted: ui.muted
+    });
+    ui.savingAvailable = storage.available && !storage.lastError;
+    if (!saved) ui.savingAvailable = false;
+    updateSaveStatus();
+  }
+
+  function buildLevelSelect() {
+    var select = els.levelSelect;
+    select.innerHTML = '';
+    for (var i = 0; i < Core.Levels.length; i++) {
+      var option = doc.createElement('option');
+      option.value = String(i);
+      option.textContent = (i + 1) + '. ' + Core.Levels[i].name;
+      if (i > ui.unlocked) option.disabled = true;
+      if (i === world.level) option.selected = true;
+      select.appendChild(option);
+    }
+  }
+
+  function onLevelSelect() {
+    var idx = parseInt(els.levelSelect.value, 10);
+    if (isNaN(idx) || idx < 0 || idx > ui.unlocked || idx === world.level) {
+      buildLevelSelect();
+      return;
+    }
+    loadLevel(idx);
+    persistState();
+  }
+
+  function loadLevel(index) {
+    closeResult();
+    world.reset(index);
+    ui.particles.length = 0;
+    ui.floats.length = 0;
+    ui.best = currentBest();
+    buildLevelSelect();
+    setStatus('Ready to aim.');
+    updateHUD();
+  }
+
+  function onNextLevel() {
+    var next = world.level + 1;
+    closeResult();
+    if (next < Core.Levels.length && next <= ui.unlocked) {
+      loadLevel(next);
+      persistState();
+    } else {
+      loadLevel(world.level);
+    }
+  }
+
+  function showResult(won, score) {
+    els.resultTitle.textContent = won ? 'Castle taken!' : 'Siege failed';
+    els.resultDetail.textContent = won
+      ? 'Score ' + score + ' \u00B7 Best ' + ui.best + ' \u00B7 Shots left ' + world.shots
+      : 'Score ' + score + ' \u00B7 Best ' + ui.best + ' \u00B7 Out of boulders';
+    var hasNext = world.level + 1 < Core.Levels.length && world.level + 1 <= ui.unlocked;
+    els.resultNext.hidden = !hasNext;
+    var dlg = els.resultDialog;
+    if (typeof dlg.showModal === 'function') {
+      if (!dlg.open) dlg.showModal();
+    } else {
+      dlg.open = true;
+    }
+    var target = hasNext ? els.resultNext : els.resultReplay;
+    if (typeof target.focus === 'function') target.focus();
+  }
+
+  function closeResult() {
+    var dlg = els.resultDialog;
+    if (!dlg.open) return;
+    if (typeof dlg.close === 'function') dlg.close();
+    else dlg.open = false;
+  }
+
+  function toggleInspector() {
+    ui.inspectorOpen = !ui.inspectorOpen;
+    els.inspectorPanel.hidden = !ui.inspectorOpen;
+    els.inspectorToggle.setAttribute('aria-expanded', ui.inspectorOpen ? 'true' : 'false');
+    if (ui.inspectorOpen) refreshInspector();
+  }
+
+  function buildInspectorComponents() {
+    var html = '';
+    for (var i = 0; i < COMPONENTS.length; i++) {
+      var c = COMPONENTS[i];
+      html += '<li><strong>' + c[0] + '</strong> <span class="kind">' + c[1] +
+        '</span> — ' + c[2] + '</li>';
+    }
+    els.inspectorComponents.innerHTML = html;
+  }
+
+  function refreshInspector() {
+    var snap = world.snapshot();
+    var liveCount = 0;
+    for (var i = 0; i < snap.bodies.length; i++) {
+      if (snap.bodies[i].alive) liveCount++;
+    }
+    var rows = [
+      ['State', snap.state],
+      ['Level', (snap.level + 1) + '. ' + snap.levelName],
+      ['Shots left', String(snap.shots)],
+      ['Score', String(snap.score)],
+      ['Best', String(ui.best)],
+      ['Live bodies', String(liveCount)],
+      ['Particles', String(ui.particles.length)],
+      ['Explosions', String(snap.explosionCount)],
+      ['Shot time', snap.flightTime.toFixed(2) + ' s'],
+      ['Projectile', Math.round(snap.projectile.x) + ', ' + Math.round(snap.projectile.y)],
+      ['Velocity', Math.round(snap.projectile.vx) + ', ' + Math.round(snap.projectile.vy) + ' px/s'],
+      ['Saving available', ui.savingAvailable ? 'yes' : 'no']
+    ];
+    var html = '';
+    for (i = 0; i < rows.length; i++) {
+      html += '<dt>' + rows[i][0] + '</dt><dd>' + rows[i][1] + '</dd>';
+    }
+    els.inspectorBody.innerHTML = html;
+  }
+
+  function toWorldPoint(e) {
+    var rect = { left: 0, top: 0, width: World.width, height: World.height };
+    try {
+      var r = els.canvas.getBoundingClientRect();
+      if (r && r.width > 0 && r.height > 0) rect = r;
+    } catch (err) {
+      rect = { left: 0, top: 0, width: World.width, height: World.height };
+    }
+    return {
+      x: (e.clientX - rect.left) * (World.width / rect.width),
+      y: (e.clientY - rect.top) * (World.height / rect.height)
+    };
+  }
+
+  function onPointerDown(e) {
+    if (ui.paused || world.state !== 'READY') return;
+    var p = toWorldPoint(e);
+    var b = world.projectile;
+    var dx = p.x - b.x;
+    var dy = p.y - b.y;
+    if (dx * dx + dy * dy > 70 * 70) return;
+    var pull = world.drag.begin(e.pointerId, p.x, p.y);
+    if (!pull) return;
+    ui.dragPointer = e.pointerId;
+    try {
+      if (typeof els.canvas.setPointerCapture === 'function') {
+        els.canvas.setPointerCapture(e.pointerId);
+      }
+    } catch (err) {}
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (ui.dragPointer === null || e.pointerId !== ui.dragPointer) return;
+    var p = toWorldPoint(e);
+    world.drag.move(e.pointerId, p.x, p.y);
+  }
+
+  function onPointerUp(e) {
+    if (ui.dragPointer === null || e.pointerId !== ui.dragPointer) return;
+    var pull = world.drag.end(e.pointerId);
+    ui.dragPointer = null;
+    try {
+      if (typeof els.canvas.releasePointerCapture === 'function') {
+        els.canvas.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
+    if (pull) launchPull(pull);
+  }
+
+  function onPointerCancel(e) {
+    if (ui.dragPointer !== null && e.pointerId !== ui.dragPointer) return;
+    world.drag.cancel();
+    ui.dragPointer = null;
+  }
+
+  function onKeydown(e) {
+    var key = e.key;
+    var step = e.shiftKey ? 5 : 1;
+    var handled = true;
+    if (key === 'ArrowUp') setAngle(ui.angle + step);
+    else if (key === 'ArrowDown') setAngle(ui.angle - step);
+    else if (key === 'ArrowLeft') setPower(ui.power - step);
+    else if (key === 'ArrowRight') setPower(ui.power + step);
+    else if (key === ' ' || key === 'Spacebar') {
+      if (!ui.paused) launchPull(currentAimPull());
+    } else if (key === 'Escape') {
+      world.drag.cancel();
+      ui.dragPointer = null;
+    } else if (key === 'p' || key === 'P') {
+      togglePause();
+    } else {
+      handled = false;
+    }
+    if (handled && typeof e.preventDefault === 'function') e.preventDefault();
+  }
+
+  var audioCtx = null;
+  function ensureAudio() {
+    if (audioCtx) return audioCtx;
+    var AC = global.AudioContext || global.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      audioCtx = new AC();
+    } catch (e) {
+      audioCtx = null;
+    }
+    return audioCtx;
+  }
+  function playTone(freq, duration, type, gain) {
+    if (ui.muted) return;
+    var ac = ensureAudio();
+    if (!ac) return;
+    try {
+      if (ac.state === 'suspended' && typeof ac.resume === 'function') ac.resume();
+      var osc = ac.createOscillator();
+      var g = ac.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.value = gain;
+      osc.connect(g);
+      g.connect(ac.destination);
+      var t = ac.currentTime;
+      osc.start(t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      osc.stop(t + duration + 0.02);
+    } catch (e) {}
+  }
+
+  function spawnParticle(kind, x, y, opts) {
+    if (ui.particles.length >= 400) ui.particles.shift();
+    ui.particles.push({
+      kind: kind,
+      x: x,
+      y: y,
+      vx: (opts && opts.vx) || (rnd() - 0.5) * 220,
+      vy: (opts && opts.vy) || (-rnd() * 260 - 40),
+      size: (opts && opts.size) || (2 + rnd() * 4),
+      rot: rnd() * Math.PI,
+      vr: (rnd() - 0.5) * 6,
+      age: 0,
+      life: (opts && opts.life) || (0.5 + rnd() * 0.7)
+    });
+  }
+
+  function spawnBurst(material, x, y) {
+    if (ui.reducedMotion) return;
+    var kind = material === 'timber' ? 'sliver'
+      : material === 'glass' ? 'shard'
+      : material === 'stone' ? 'dust'
+      : material === 'crown' ? 'spark'
+      : 'smoke';
+    var count = kind === 'smoke' ? 16 : 10;
+    for (var i = 0; i < count; i++) {
+      spawnParticle(kind, x, y, {
+        life: kind === 'smoke' ? 0.9 + rnd() * 0.6 : 0.4 + rnd() * 0.5,
+        size: kind === 'smoke' ? 6 + rnd() * 10 : 2 + rnd() * 4
+      });
+    }
+  }
+
+  function spawnExplosion(x, y) {
+    if (ui.reducedMotion) return;
+    for (var i = 0; i < 26; i++) {
+      spawnParticle('smoke', x, y, {
+        vx: (rnd() - 0.5) * 420,
+        vy: (rnd() - 0.5) * 420 - 80,
+        life: 0.7 + rnd() * 0.8,
+        size: 8 + rnd() * 16
+      });
+    }
+    for (i = 0; i < 12; i++) {
+      spawnParticle('spark', x, y, {
+        vx: (rnd() - 0.5) * 560,
+        vy: -rnd() * 420,
+        life: 0.3 + rnd() * 0.4,
+        size: 2 + rnd() * 3
+      });
+    }
+  }
+
+  function spawnHitParticles(material, x, y, damage) {
+    if (ui.reducedMotion) return;
+    var count = Math.min(6, 2 + Math.floor(damage / 40));
+    for (var i = 0; i < count; i++) spawnBurstParticle(material, x, y);
+  }
+
+  function spawnBurstParticle(material, x, y) {
+    var kind = material === 'timber' ? 'sliver'
+      : material === 'glass' ? 'shard'
+      : material === 'stone' ? 'dust'
+      : 'smoke';
+    spawnParticle(kind, x, y, { life: 0.3 + rnd() * 0.4 });
+  }
+
+  function addFloat(text, x, y) {
+    if (ui.floats.length >= 20) ui.floats.shift();
+    ui.floats.push({ text: text, x: x, y: y, age: 0 });
+  }
+
+  function updateParticles(dt) {
+    for (var i = ui.particles.length - 1; i >= 0; i--) {
+      var p = ui.particles[i];
+      p.age += dt;
+      if (p.age >= p.life) {
+        ui.particles.splice(i, 1);
+        continue;
+      }
+      p.vy += 350 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      if (p.y > World.groundY - 2) {
+        p.y = World.groundY - 2;
+        p.vy = 0;
+        p.vx *= 0.9;
+      }
+    }
+    for (i = ui.floats.length - 1; i >= 0; i--) {
+      var f = ui.floats[i];
+      f.age += dt;
+      if (f.age > 1.1) ui.floats.splice(i, 1);
+    }
+  }
+
+  function buildFibreCache() {
+    var canvas = doc.createElement('canvas');
+    if (!canvas || !canvas.getContext) return null;
+    canvas.width = World.width;
+    canvas.height = World.height;
+    var g = canvas.getContext('2d');
+    if (!g) return null;
+    g.fillStyle = '#a8c4e0';
+    g.fillRect(0, 0, World.width, 150);
+    g.fillStyle = '#7ba05b';
+    g.fillRect(0, 150, World.width, World.height - 150);
+    g.fillStyle = '#6d9450';
+    g.beginPath();
+    g.moveTo(0, 250);
+    g.quadraticCurveTo(280, 170, 560, 250);
+    g.quadraticCurveTo(840, 320, 1100, 230);
+    g.lineTo(1100, 520);
+    g.lineTo(0, 520);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#5d7f44';
+    g.fillRect(0, 520, World.width, World.height - 520);
+    g.strokeStyle = 'rgba(255,255,255,0.08)';
+    g.lineWidth = 1;
+    for (var i = 0; i < 340; i++) {
+      var x = rnd() * World.width;
+      var y = rnd() * World.height;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + (rnd() - 0.5) * 14, y + (rnd() - 0.5) * 6);
+      g.stroke();
+    }
+    return canvas;
+  }
+
+  function materialColors(material) {
+    if (material === 'glass') return { fill: '#cfe8ee', edge: '#8fb9c4' };
+    if (material === 'timber') return { fill: '#c98d4b', edge: '#8a5f2e' };
+    if (material === 'stone') return { fill: '#9a9aa2', edge: '#6b6b73' };
+    if (material === 'powder') return { fill: '#7a4a3a', edge: '#52301f' };
+    if (material === 'crown') return { fill: '#e8c34a', edge: '#a8821f' };
+    return { fill: '#8d8d8d', edge: '#5a5a5a' };
+  }
+
+  function drawStitchedRect(g, x, y, w, h, colors) {
+    g.fillStyle = colors.fill;
+    g.fillRect(x, y, w, h);
+    g.strokeStyle = colors.edge;
+    g.lineWidth = 2;
+    if (typeof g.setLineDash === 'function') g.setLineDash([5, 4]);
+    g.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
+    if (typeof g.setLineDash === 'function') g.setLineDash([]);
+  }
+
+  function drawCrown(g, body) {
+    var x = body.x - body.hw;
+    var y = body.y - body.hh;
+    var w = body.hw * 2;
+    var h = body.hh * 2;
+    g.fillStyle = '#e8c34a';
+    g.beginPath();
+    g.moveTo(x, y + h);
+    g.lineTo(x, y + h * 0.35);
+    g.lineTo(x + w * 0.2, y + h * 0.65);
+    g.lineTo(x + w * 0.38, y);
+    g.lineTo(x + w * 0.55, y + h * 0.6);
+    g.lineTo(x + w * 0.72, y);
+    g.lineTo(x + w * 0.88, y + h * 0.62);
+    g.lineTo(x + w, y + h * 0.3);
+    g.lineTo(x + w, y + h);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = '#a8821f';
+    g.lineWidth = 2;
+    if (typeof g.setLineDash === 'function') g.setLineDash([4, 3]);
+    g.stroke();
+    if (typeof g.setLineDash === 'function') g.setLineDash([]);
+  }
+
+  function render() {
+    if (!ctx) return;
+    if (!fibreCache) fibreCache = buildFibreCache();
+    if (fibreCache) {
+      ctx.drawImage(fibreCache, 0, 0);
+    } else {
+      ctx.fillStyle = '#7ba05b';
+      ctx.fillRect(0, 0, World.width, World.height);
+      ctx.fillStyle = '#5d7f44';
+      ctx.fillRect(0, World.groundY, World.width, World.height - World.groundY);
+    }
+    var bodies = world.bodies;
+    var i, body;
+    for (i = 0; i < bodies.length; i++) {
+      body = bodies[i];
+      if (!body.alive || body.isProjectile) continue;
+      if (body.material === 'crown') {
+        drawCrown(ctx, body);
+      } else {
+        drawStitchedRect(ctx, body.x - body.hw, body.y - body.hh, body.hw * 2, body.hh * 2, materialColors(body.material));
+      }
+    }
+    ctx.strokeStyle = '#5a4632';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(Sling.x, Sling.y - 6);
+    ctx.lineTo(Sling.x, World.groundY);
+    ctx.stroke();
+    var proj = world.projectile;
+    if (proj.alive) {
+      ctx.strokeStyle = '#4a3a28';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(Sling.x, Sling.y);
+      ctx.lineTo(proj.x, proj.y);
+      ctx.stroke();
+      ctx.fillStyle = '#6b6b73';
+      ctx.beginPath();
+      ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4a4a52';
+      ctx.lineWidth = 2;
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+    }
+    if (world.state === 'READY') {
+      var pull = world.drag.isActive() ? world.drag.getPull() : currentAimPull();
+      if (Math.hypot(pull.x, pull.y) >= Core.Defaults.minPull) {
+        var points = predictor.predict(pull, 110);
+        ctx.fillStyle = 'rgba(255, 250, 235, 0.85)';
+        for (i = 0; i < points.length; i += 6) {
+          ctx.beginPath();
+          ctx.arc(points[i].x, points[i].y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    for (i = 0; i < ui.particles.length; i++) {
+      drawParticle(ui.particles[i]);
+    }
+    ctx.fillStyle = '#3d3327';
+    ctx.font = 'bold 16px Georgia, serif';
+    ctx.textAlign = 'center';
+    for (i = 0; i < ui.floats.length; i++) {
+      var f = ui.floats[i];
+      ctx.globalAlpha = Math.max(0, 1 - f.age / 1.1);
+      ctx.fillText(f.text, f.x, f.y - f.age * 40);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    if (ui.hitboxes) {
+      ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
+      ctx.lineWidth = 1;
+      for (i = 0; i < bodies.length; i++) {
+        body = bodies[i];
+        if (!body.alive) continue;
+        if (body.isProjectile) {
+          ctx.beginPath();
+          ctx.arc(body.x, body.y, body.radius, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(body.x - body.hw, body.y - body.hh, body.hw * 2, body.hh * 2);
+        }
+      }
+    }
+  }
+
+  function drawParticle(p) {
+    var alpha = Math.max(0, 1 - p.age / p.life);
+    ctx.globalAlpha = alpha * 0.9;
+    if (p.kind === 'sliver') {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = '#9a6a34';
+      ctx.fillRect(-p.size, -1.5, p.size * 2, 3);
+      ctx.restore();
+    } else if (p.kind === 'shard') {
+      ctx.fillStyle = '#cfe8ee';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - p.size);
+      ctx.lineTo(p.x + p.size * 0.8, p.y + p.size);
+      ctx.lineTo(p.x - p.size * 0.8, p.y + p.size * 0.6);
+      ctx.closePath();
+      ctx.fill();
+    } else if (p.kind === 'dust') {
+      ctx.fillStyle = '#b9b9c0';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (p.kind === 'spark') {
+      ctx.fillStyle = '#ffd76a';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(90, 80, 70, 0.6)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1 + p.age), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function handleEvents(events) {
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i];
+      if (e.type === 'launch') {
+        playTone(180, 0.12, 'square', 0.05);
+      } else if (e.type === 'hit') {
+        spawnHitParticles(e.material, e.x, e.y, e.damage);
+        playTone(220, 0.05, 'triangle', 0.03);
+      } else if (e.type === 'destroy') {
+        spawnBurst(e.material, e.x, e.y);
+        if (e.points > 0) addFloat('+' + e.points, e.x, e.y - 20);
+        playTone(140, 0.15, 'sawtooth', 0.05);
+      } else if (e.type === 'explode') {
+        spawnExplosion(e.x, e.y);
+        playTone(70, 0.4, 'sawtooth', 0.09);
+      } else if (e.type === 'ready') {
+        setStatus('Ready to aim.');
+      } else if (e.type === 'win') {
+        onWin(e);
+      } else if (e.type === 'lose') {
+        showResult(false, e.score);
+        playTone(120, 0.3, 'triangle', 0.05);
+      } else if (e.type === 'reset') {
+        ui.particles.length = 0;
+        ui.floats.length = 0;
+      }
+    }
+  }
+
+  function onWin(e) {
+    var result = storage.complete(world.level, e.score);
+    if (result && result.state) {
+      ui.unlocked = result.state.unlocked;
+      ui.bests = result.state.bests;
+      ui.best = currentBest();
+    }
+    ui.savingAvailable = storage.available && !storage.lastError;
+    updateSaveStatus();
+    buildLevelSelect();
+    showResult(true, e.score);
+    playTone(660, 0.25, 'square', 0.06);
+  }
+
+  function frame(ts) {
+    if (lastFrame === null) lastFrame = ts;
+    var dt = (ts - lastFrame) / 1000;
+    lastFrame = ts;
+    if (dt > 0.25) dt = 0.25;
+    if (!ui.paused && !doc.hidden) world.step(dt);
+    handleEvents(world.drain());
+    updateParticles(dt);
+    render();
+    updateHUD();
+    frameCount++;
+    if (ui.inspectorOpen && frameCount % 15 === 0) refreshInspector();
+    global.requestAnimationFrame(frame);
+  }
+
+  global.FeltSiege = {
+    version: Core.version,
+    init: init,
+    getWorld: function () { return world; },
+    getStorage: function () { return storage; },
+    loadLevel: function (index) { loadLevel(index); },
+    setPaused: function (paused) {
+      if (paused !== ui.paused) togglePause();
+    },
+    snapshot: function () {
+      if (!world) {
+        return {
+          version: Core.version,
+          state: null,
+          paused: ui.paused,
+          savingAvailable: ui.savingAvailable
+        };
+      }
+      var snap = world.snapshot();
+      return {
+        version: Core.version,
+        state: snap.state,
+        level: snap.level,
+        levelName: snap.levelName,
+        shots: snap.shots,
+        score: snap.score,
+        simTime: snap.simTime,
+        flightTime: snap.flightTime,
+        explosionCount: snap.explosionCount,
+        projectile: snap.projectile,
+        bodyCount: snap.bodies.length,
+        paused: ui.paused,
+        muted: ui.muted,
+        angle: ui.angle,
+        power: ui.power,
+        dragActive: ui.dragPointer !== null,
+        dragPointer: ui.dragPointer,
+        savingAvailable: ui.savingAvailable,
+        inspectorOpen: ui.inspectorOpen,
+        hitboxes: ui.hitboxes,
+        best: ui.best,
+        unlocked: ui.unlocked,
+        particles: ui.particles.length
+      };
+    }
+  };
+
+  if (doc.readyState === 'loading') {
+    doc.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})(typeof window !== 'undefined' ? window : this);
+</script>
+</body>
+</html>
