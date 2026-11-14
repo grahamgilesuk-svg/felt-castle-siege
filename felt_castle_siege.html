@@ -958,7 +958,7 @@
         break;
       }
     }
-    var boulderQuiet = gone || (p.grounded && Math.hypot(p.vx, p.vy) < cfg.restSpeed);
+    var boulderQuiet = gone || Math.hypot(p.vx, p.vy) < cfg.restSpeed;
     if (this.flightTime >= cfg.minFlightTime && castleQuiet && boulderQuiet) {
       this.quietTimer += dt;
     } else {
@@ -1112,6 +1112,7 @@
 
   var ui = {
     paused: false,
+    autoPaused: false,
     muted: true,
     angle: 35,
     power: 80,
@@ -1131,7 +1132,8 @@
     time: 0,
     armSwing: 0,
     bandSnap: 0,
-    flash: 0
+    flash: 0,
+    pendingResult: null
   };
 
   var rngSeed = 987654321;
@@ -1280,6 +1282,19 @@
       global.addEventListener('blur', function () {
         pauseForInterruption();
       });
+      global.addEventListener('focus', function () {
+        resumeFromInterruption();
+      });
+      global.addEventListener('pointerup', function (e) {
+        if (ui.dragPointer !== null && e.pointerId === ui.dragPointer) {
+          onPointerUp(e);
+        }
+      });
+      global.addEventListener('pointercancel', function (e) {
+        if (ui.dragPointer !== null && e.pointerId === ui.dragPointer) {
+          onPointerCancel(e);
+        }
+      });
     }
   }
 
@@ -1341,6 +1356,7 @@
 
   function togglePause() {
     ui.paused = !ui.paused;
+    ui.autoPaused = false;
     world.drag.cancel();
     ui.dragPointer = null;
     els.pauseBtn.textContent = ui.paused ? 'Resume' : 'Pause';
@@ -1351,6 +1367,7 @@
   function pauseForInterruption() {
     if (!ui.paused) {
       ui.paused = true;
+      ui.autoPaused = true;
       els.pauseBtn.textContent = 'Resume';
       setStatus('Paused.');
     }
@@ -1359,8 +1376,18 @@
     updateHUD();
   }
 
+  function resumeFromInterruption() {
+    if (!ui.autoPaused || !ui.paused) return;
+    ui.paused = false;
+    ui.autoPaused = false;
+    els.pauseBtn.textContent = 'Pause';
+    setStatus(world.state === 'READY' ? 'Ready to aim.' : els.statusText.textContent);
+    updateHUD();
+  }
+
   function onVisibilityChange() {
     if (doc.hidden) pauseForInterruption();
+    else resumeFromInterruption();
   }
 
   function toggleSound() {
@@ -1736,6 +1763,14 @@
     if (ui.banner) {
       ui.banner.age += dt;
       if (ui.banner.age > 2.4) ui.banner = null;
+    }
+    if (ui.pendingResult) {
+      ui.pendingResult.age += dt;
+      if (ui.pendingResult.age >= ui.pendingResult.delay) {
+        var result = ui.pendingResult;
+        ui.pendingResult = null;
+        showResult(result.won, result.score);
+      }
     }
     ui.time += dt;
   }
@@ -2366,6 +2401,27 @@
 
     ctx.restore();
 
+    if (ui.paused) {
+      ctx.fillStyle = 'rgba(40, 32, 20, 0.45)';
+      ctx.fillRect(0, 0, World.width, World.height);
+      ctx.fillStyle = 'rgba(61, 51, 39, 0.92)';
+      rr(ctx, World.width / 2 - 170, World.height / 2 - 46, 340, 92, 14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(243, 234, 215, 0.8)';
+      ctx.lineWidth = 2;
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([6, 5]);
+      rr(ctx, World.width / 2 - 163, World.height / 2 - 39, 326, 78, 10);
+      ctx.stroke();
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+      ctx.fillStyle = '#f3ead7';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 26px Georgia, serif';
+      ctx.fillText('Paused', World.width / 2, World.height / 2 - 6);
+      ctx.font = '15px Georgia, serif';
+      ctx.fillText('Press Resume to continue', World.width / 2, World.height / 2 + 22);
+      ctx.textAlign = 'left';
+    }
+
     if (ui.hitboxes) {
       ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
       ctx.lineWidth = 1;
@@ -2463,7 +2519,7 @@
       } else if (e.type === 'win') {
         onWin(e);
       } else if (e.type === 'lose') {
-        showResult(false, e.score);
+        ui.pendingResult = { won: false, score: e.score, age: 0, delay: 1 };
         playTone(120, 0.3, 'triangle', 0.05);
       } else if (e.type === 'reset') {
         ui.particles.length = 0;
@@ -2473,6 +2529,7 @@
         ui.flash = 0;
         ui.armSwing = 0;
         ui.bandSnap = 0;
+        ui.pendingResult = null;
         ui.banner = {
           text: 'Level ' + (e.level + 1) + ' \u00B7 ' + Core.Levels[e.level].name,
           age: 0
@@ -2494,7 +2551,7 @@
     var crown = world.crown;
     spawnConfetti(crown ? crown.x : World.width / 2, crown ? crown.y : 200);
     setStatus('Castle taken!');
-    showResult(true, e.score);
+    ui.pendingResult = { won: true, score: e.score, age: 0, delay: 1.8 };
     playTone(660, 0.25, 'square', 0.06);
   }
 
