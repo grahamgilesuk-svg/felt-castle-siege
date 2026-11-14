@@ -121,6 +121,24 @@ async function main() {
     report('desktop: pause toggles', e);
   }
 
+  try {
+    await desktop.fill('#angle-slider', '80');
+    await desktop.dispatchEvent('#angle-slider', 'input');
+    await desktop.fill('#power-slider', '100');
+    await desktop.dispatchEvent('#power-slider', 'input');
+    await desktop.click('#launch-btn');
+    await desktop.waitForFunction(() => window.FeltSiege.snapshot().state === 'FLYING', null, { timeout: 3000 });
+    const zoomed = await desktop.waitForFunction(() => window.FeltSiege.snapshot().camScale < 0.95, null, { timeout: 6000 })
+      .then(() => true).catch(() => false);
+    if (!zoomed) throw new Error('camera never zoomed out during a high shot');
+    await desktop.screenshot({ path: path.join(__dirname, 'screenshot-camera.png') });
+    await desktop.waitForFunction(() => window.FeltSiege.snapshot().state !== 'FLYING', null, { timeout: 20000 });
+    await desktop.waitForFunction(() => window.FeltSiege.snapshot().camScale === 1, null, { timeout: 6000 });
+    report('desktop: flight camera follows the boulder and returns');
+  } catch (e) {
+    report('desktop: flight camera follows the boulder and returns', e);
+  }
+
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   try {
     await mobile.goto(url);

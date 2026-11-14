@@ -445,6 +445,24 @@ check('closing the result dialog offers a clear way to continue', () => {
   assert(!api.el('launch-btn').disabled, 'launch still disabled after restart');
 });
 
+check('flight camera follows the boulder and returns to the default view', () => {
+  const api = boot({ storage: memoryStorage() });
+  api.setSlider('angle-slider', '80');
+  api.setSlider('power-slider', '100');
+  api.click('launch-btn');
+  assert(api.FeltSiege.snapshot().state === 'FLYING', 'launch rejected');
+  const zoomed = api.framesUntil(() => api.FeltSiege.snapshot().camScale < 0.95, 6000);
+  assert(zoomed, 'camera never zoomed out during a high shot (scale ' +
+    api.FeltSiege.snapshot().camScale + ')');
+  const minScale = api.FeltSiege.snapshot().camScale;
+  const resolved = api.framesUntil(() => api.FeltSiege.snapshot().state !== 'FLYING', 20000);
+  assert(resolved, 'shot never resolved');
+  const settled = api.framesUntil(() => api.FeltSiege.snapshot().camScale === 1, 6000);
+  assert(settled, 'camera did not return to the default view (scale ' +
+    api.FeltSiege.snapshot().camScale + ')');
+  assert(minScale > 0.4, 'camera zoomed out too far: ' + minScale);
+});
+
 console.log('');
 console.log(passed + ' simulated UI checks passed, ' + failed + ' failed.');
 if (failures.length) {
