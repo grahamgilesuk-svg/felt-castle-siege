@@ -958,7 +958,7 @@
         break;
       }
     }
-    var boulderQuiet = gone || (p.grounded && Math.hypot(p.vx, p.vy) < cfg.restSpeed);
+    var boulderQuiet = gone || Math.hypot(p.vx, p.vy) < cfg.restSpeed;
     if (this.flightTime >= cfg.minFlightTime && castleQuiet && boulderQuiet) {
       this.quietTimer += dt;
     } else {
@@ -1112,6 +1112,7 @@
 
   var ui = {
     paused: false,
+    autoPaused: false,
     muted: true,
     angle: 35,
     power: 80,
@@ -1281,6 +1282,19 @@
       global.addEventListener('blur', function () {
         pauseForInterruption();
       });
+      global.addEventListener('focus', function () {
+        resumeFromInterruption();
+      });
+      global.addEventListener('pointerup', function (e) {
+        if (ui.dragPointer !== null && e.pointerId === ui.dragPointer) {
+          onPointerUp(e);
+        }
+      });
+      global.addEventListener('pointercancel', function (e) {
+        if (ui.dragPointer !== null && e.pointerId === ui.dragPointer) {
+          onPointerCancel(e);
+        }
+      });
     }
   }
 
@@ -1342,6 +1356,7 @@
 
   function togglePause() {
     ui.paused = !ui.paused;
+    ui.autoPaused = false;
     world.drag.cancel();
     ui.dragPointer = null;
     els.pauseBtn.textContent = ui.paused ? 'Resume' : 'Pause';
@@ -1352,6 +1367,7 @@
   function pauseForInterruption() {
     if (!ui.paused) {
       ui.paused = true;
+      ui.autoPaused = true;
       els.pauseBtn.textContent = 'Resume';
       setStatus('Paused.');
     }
@@ -1360,8 +1376,18 @@
     updateHUD();
   }
 
+  function resumeFromInterruption() {
+    if (!ui.autoPaused || !ui.paused) return;
+    ui.paused = false;
+    ui.autoPaused = false;
+    els.pauseBtn.textContent = 'Pause';
+    setStatus(world.state === 'READY' ? 'Ready to aim.' : els.statusText.textContent);
+    updateHUD();
+  }
+
   function onVisibilityChange() {
     if (doc.hidden) pauseForInterruption();
+    else resumeFromInterruption();
   }
 
   function toggleSound() {
@@ -2374,6 +2400,27 @@
     }
 
     ctx.restore();
+
+    if (ui.paused) {
+      ctx.fillStyle = 'rgba(40, 32, 20, 0.45)';
+      ctx.fillRect(0, 0, World.width, World.height);
+      ctx.fillStyle = 'rgba(61, 51, 39, 0.92)';
+      rr(ctx, World.width / 2 - 170, World.height / 2 - 46, 340, 92, 14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(243, 234, 215, 0.8)';
+      ctx.lineWidth = 2;
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([6, 5]);
+      rr(ctx, World.width / 2 - 163, World.height / 2 - 39, 326, 78, 10);
+      ctx.stroke();
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+      ctx.fillStyle = '#f3ead7';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 26px Georgia, serif';
+      ctx.fillText('Paused', World.width / 2, World.height / 2 - 6);
+      ctx.font = '15px Georgia, serif';
+      ctx.fillText('Press Resume to continue', World.width / 2, World.height / 2 + 22);
+      ctx.textAlign = 'left';
+    }
 
     if (ui.hitboxes) {
       ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';

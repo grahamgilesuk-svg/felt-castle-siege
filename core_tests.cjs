@@ -364,6 +364,23 @@ check('recovery: twelve-second timeout returns control', () => {
   assert(world.state !== 'FLYING', 'shot still flying after 13 s');
 });
 
+check('recovery: boulder resting on the castle resolves without the timeout', () => {
+  const world = freshWorld(0);
+  assert(launchAim(world, 10, 20), 'launch rejected');
+  advance(world, 0.5);
+  const p = world.projectile;
+  const roof = world.bodies.find((b) => b.id === 'roof');
+  assert(roof && roof.alive, 'roof missing');
+  p.x = roof.x;
+  p.y = roof.y - roof.hh - p.radius - 1;
+  p.vx = 0;
+  p.vy = 0;
+  p.grounded = false;
+  advance(world, 2.5);
+  assert(world.state !== 'FLYING',
+    'shot still flying with boulder resting on the castle: state ' + world.state);
+});
+
 check('persistence: malformed, denied, bests and legacy migration', () => {
   const memory = () => {
     const store = Object.create(null);
