@@ -4,9 +4,9 @@ A small offline siege game in a single HTML file. Pull back the felt boulder, le
 
 ## Play
 
-Open `felt_castle_siege.html` in a modern browser. No network, dependencies, fonts, images or build step are required.
+Open `felt_castle_siege.html` in a modern browser — or play the hosted build at `https://grahamgilesuk-svg.github.io/felt-castle-siege/` (GitHub Pages). No network, dependencies, fonts, images or build step are required.
 
-- **Drag** the boulder backwards and release (mouse, pen or touch), or
+- **Drag anywhere on the scene** backwards and release (mouse, pen or touch), or
 - use the **angle and power sliders** and press **Launch boulder**, or
 - focus the canvas: **arrow keys** aim and set power, **Space** launches, **P** pauses, **Escape** cancels a drag.
 
@@ -21,6 +21,7 @@ Arcade translational physics only: blocks slide and fall; they do not rotate. No
 | File | Purpose |
 | --- | --- |
 | `felt_castle_siege.html` | The complete game (styles, code, levels, drawing, optional sound synthesis). |
+| `index.html` | Copy of the game so GitHub Pages serves it at the site root. |
 | `felt_castle_siege_review_and_spec.md` | Review of the previous version (18 findings) and the v2.0 specification. |
 | `core_tests.cjs` | 26 dependency-free Node checks against the HTML's embedded core. |
 | `ui_tests.cjs` | 8 simulated UI integration checks in a minimal DOM harness. |
