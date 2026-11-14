@@ -1133,7 +1133,8 @@
     armSwing: 0,
     bandSnap: 0,
     flash: 0,
-    pendingResult: null
+    pendingResult: null,
+    roundOver: false
   };
 
   var rngSeed = 987654321;
@@ -1360,7 +1361,8 @@
     world.drag.cancel();
     ui.dragPointer = null;
     els.pauseBtn.textContent = ui.paused ? 'Resume' : 'Pause';
-    setStatus(ui.paused ? 'Paused.' : 'Ready to aim.');
+    setStatus(ui.paused ? 'Paused.'
+      : (roundOverActive() ? roundOverStatus() : 'Ready to aim.'));
     updateHUD();
   }
 
@@ -1435,6 +1437,7 @@
 
   function loadLevel(index) {
     closeResult();
+    ui.roundOver = false;
     world.reset(index);
     ui.particles.length = 0;
     ui.floats.length = 0;
@@ -1457,6 +1460,7 @@
   }
 
   function showResult(won, score) {
+    ui.roundOver = false;
     els.resultTitle.textContent = won ? 'Castle taken!' : 'Siege failed';
     els.resultDetail.textContent = won
       ? 'Score ' + score + ' \u00B7 Best ' + ui.best + ' \u00B7 Shots left ' + world.shots
@@ -1473,11 +1477,24 @@
     if (typeof target.focus === 'function') target.focus();
   }
 
+  function roundOverActive() {
+    return ui.roundOver && (world.state === 'WON' || world.state === 'LOST');
+  }
+
+  function roundOverStatus() {
+    return 'Round over \u2014 tap the scene or press Reset level to play again.';
+  }
+
   function closeResult() {
     var dlg = els.resultDialog;
     if (!dlg.open) return;
     if (typeof dlg.close === 'function') dlg.close();
     else dlg.open = false;
+    if (world.state === 'WON' || world.state === 'LOST') {
+      ui.roundOver = true;
+      setStatus(roundOverStatus());
+      updateHUD();
+    }
   }
 
   function toggleInspector() {
@@ -1539,6 +1556,11 @@
   }
 
   function onPointerDown(e) {
+    if (roundOverActive() && !ui.paused) {
+      loadLevel(world.level);
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      return;
+    }
     if (ui.paused || world.state !== 'READY') return;
     var p = toWorldPoint(e);
     var pull = world.drag.begin(e.pointerId, p.x, p.y);
@@ -1580,7 +1602,9 @@
     var key = e.key;
     var step = e.shiftKey ? 5 : 1;
     var handled = true;
-    if (key === 'ArrowUp') setAngle(ui.angle + step);
+    if (roundOverActive() && (key === ' ' || key === 'Spacebar' || key === 'Enter')) {
+      loadLevel(world.level);
+    } else if (key === 'ArrowUp') setAngle(ui.angle + step);
     else if (key === 'ArrowDown') setAngle(ui.angle - step);
     else if (key === 'ArrowLeft') setPower(ui.power - step);
     else if (key === 'ArrowRight') setPower(ui.power + step);
@@ -2422,6 +2446,23 @@
       ctx.textAlign = 'left';
     }
 
+    if (roundOverActive() && !ui.paused) {
+      ctx.fillStyle = 'rgba(61, 51, 39, 0.92)';
+      rr(ctx, World.width / 2 - 210, World.height - 78, 420, 54, 12);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(243, 234, 215, 0.8)';
+      ctx.lineWidth = 2;
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([6, 5]);
+      rr(ctx, World.width / 2 - 204, World.height - 72, 408, 42, 9);
+      ctx.stroke();
+      if (typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+      ctx.fillStyle = '#f3ead7';
+      ctx.font = 'bold 19px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Round over \u2014 tap to play again', World.width / 2, World.height - 45);
+      ctx.textAlign = 'left';
+    }
+
     if (ui.hitboxes) {
       ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
       ctx.lineWidth = 1;
@@ -2620,6 +2661,7 @@
         savingAvailable: ui.savingAvailable,
         inspectorOpen: ui.inspectorOpen,
         hitboxes: ui.hitboxes,
+        roundOver: roundOverActive(),
         best: ui.best,
         unlocked: ui.unlocked,
         particles: ui.particles.length

@@ -79,9 +79,24 @@ async function main() {
     const dialogVisible = await desktop.isVisible('#result-dialog');
     if (!dialogVisible) throw new Error('result dialog not visible');
     await desktop.click('#result-close');
-    report('desktop: result dialog interaction');
+    const snap = await desktop.evaluate(() => window.FeltSiege.snapshot());
+    if (snap.roundOver !== true) throw new Error('round-over prompt not armed after closing');
+    const status = await desktop.textContent('#status-text');
+    if (!/Round over/.test(status)) throw new Error('status does not explain how to continue: ' + status);
+    report('desktop: closing the dialog arms the round-over prompt');
   } catch (e) {
-    report('desktop: result dialog interaction', e);
+    report('desktop: closing the dialog arms the round-over prompt', e);
+  }
+
+  try {
+    await desktop.mouse.click(640, 300);
+    await desktop.waitForFunction(() => window.FeltSiege.snapshot().state === 'READY', null, { timeout: 3000 });
+    const after = await desktop.evaluate(() => window.FeltSiege.snapshot());
+    if (after.roundOver !== false) throw new Error('prompt not cleared on restart');
+    if (after.shots !== 3) throw new Error('restart did not restore three shots');
+    report('desktop: tapping the scene restarts the round');
+  } catch (e) {
+    report('desktop: tapping the scene restarts the round', e);
   }
 
   try {

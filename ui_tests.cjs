@@ -421,6 +421,30 @@ check('keyboard aiming and inspector updates', () => {
   assert(api.FeltSiege.snapshot().dragActive === false, 'escape left a drag active');
 });
 
+check('closing the result dialog offers a clear way to continue', () => {
+  const api = boot({ storage: memoryStorage() });
+  assert(playToWin(api), 'shot did not win');
+  api.click('result-close');
+  assert(!api.el('result-dialog').open, 'dialog did not close');
+  const snap = api.FeltSiege.snapshot();
+  assert(snap.state === 'WON', 'state changed on close');
+  assert(snap.roundOver === true, 'round-over prompt not armed');
+  assert(api.el('status-text').textContent.indexOf('Round over') === 0,
+    'status does not explain how to continue: ' + api.el('status-text').textContent);
+  assert(api.el('launch-btn').disabled, 'launch should stay disabled after the round');
+  api.frames(30);
+  assert(api.FeltSiege.snapshot().roundOver === true, 'prompt disappeared while idle');
+  api.pointer('pointerdown', 7, 550, 300);
+  api.pointer('pointerup', 7, 550, 300);
+  const after = api.FeltSiege.snapshot();
+  assert(after.state === 'READY', 'tapping the scene did not restart (state ' + after.state + ')');
+  assert(after.roundOver === false, 'round-over prompt not cleared on restart');
+  assert(after.shots === 3, 'restart did not restore three shots');
+  assert(after.score === 0, 'restart did not clear attempt score');
+  assert(api.el('status-text').textContent === 'Ready to aim.', 'status not reset');
+  assert(!api.el('launch-btn').disabled, 'launch still disabled after restart');
+});
+
 console.log('');
 console.log(passed + ' simulated UI checks passed, ' + failed + ' failed.');
 if (failures.length) {
