@@ -68,6 +68,7 @@ async function main() {
     await desktop.waitForFunction(() => window.FeltSiege.snapshot().state !== 'FLYING', null, { timeout: 20000 });
     const state = await desktop.evaluate(() => window.FeltSiege.snapshot().state);
     if (state !== 'WON') throw new Error('expected WON after a standard shot, saw ' + state);
+    await desktop.waitForFunction(() => document.getElementById('result-dialog').open, null, { timeout: 5000 });
     await desktop.screenshot({ path: path.join(__dirname, 'screenshot-desktop-win.png') });
     report('desktop: standard shot wins and dialog appears');
   } catch (e) {

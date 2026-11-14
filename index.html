@@ -1131,7 +1131,8 @@
     time: 0,
     armSwing: 0,
     bandSnap: 0,
-    flash: 0
+    flash: 0,
+    pendingResult: null
   };
 
   var rngSeed = 987654321;
@@ -1736,6 +1737,14 @@
     if (ui.banner) {
       ui.banner.age += dt;
       if (ui.banner.age > 2.4) ui.banner = null;
+    }
+    if (ui.pendingResult) {
+      ui.pendingResult.age += dt;
+      if (ui.pendingResult.age >= ui.pendingResult.delay) {
+        var result = ui.pendingResult;
+        ui.pendingResult = null;
+        showResult(result.won, result.score);
+      }
     }
     ui.time += dt;
   }
@@ -2463,7 +2472,7 @@
       } else if (e.type === 'win') {
         onWin(e);
       } else if (e.type === 'lose') {
-        showResult(false, e.score);
+        ui.pendingResult = { won: false, score: e.score, age: 0, delay: 1 };
         playTone(120, 0.3, 'triangle', 0.05);
       } else if (e.type === 'reset') {
         ui.particles.length = 0;
@@ -2473,6 +2482,7 @@
         ui.flash = 0;
         ui.armSwing = 0;
         ui.bandSnap = 0;
+        ui.pendingResult = null;
         ui.banner = {
           text: 'Level ' + (e.level + 1) + ' \u00B7 ' + Core.Levels[e.level].name,
           age: 0
@@ -2494,7 +2504,7 @@
     var crown = world.crown;
     spawnConfetti(crown ? crown.x : World.width / 2, crown ? crown.y : 200);
     setStatus('Castle taken!');
-    showResult(true, e.score);
+    ui.pendingResult = { won: true, score: e.score, age: 0, delay: 1.8 };
     playTone(660, 0.25, 'square', 0.06);
   }
 

@@ -259,7 +259,9 @@ function playToWin(api) {
   api.setSlider('angle-slider', 10);
   api.setSlider('power-slider', 80);
   api.click('launch-btn');
-  return api.framesUntil(() => api.FeltSiege.snapshot().state === 'WON');
+  return api.framesUntil(() =>
+    api.FeltSiege.snapshot().state === 'WON' && api.el('result-dialog').open
+  );
 }
 
 let passed = 0;
